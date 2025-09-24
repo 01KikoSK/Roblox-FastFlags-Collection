@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Roblox FastFlags Collection – Offline</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg:#0f1220;--fg:#e7eaf6;--muted:#a8aed1;--accent:#7aa2f7;--good:#4fd1c5;--warn:#f6ad55;--bad:#f56565;--card:#1a1e2e;--border:#2b3045;
+  }
+  html,body{height:100%}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;background:var(--bg);color:var(--fg)}
+  header{padding:16px 20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(122,162,247,.08),transparent)}
+  h1{margin:0;font-size:20px}
+  .sub{color:var(--muted);font-size:12px;margin-top:4px}
+  main{padding:16px 20px;display:grid;grid-template-columns:320px 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .card h2{margin:0;padding:12px 14px;border-bottom:1px solid var(--border);font-size:16px}
+  .card .content{padding:12px 14px}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  select, input[type="text"], input[type="number"], textarea{
+    background:#0b0e1a;color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;width:100%
+  }
+  textarea{min-height:110px}
+  button{
+    background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer
+  }
+  button.secondary{background:#20253a}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--fg)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .flags{width:100%;border-spacing:0}
+  .flags th,.flags td{border-bottom:1px solid var(--border);padding:8px;font-size:13px;text-align:left}
+  .flags th{color:var(--muted);font-weight:600;background:#12162a;position:sticky;top:0}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--muted)}
+  .status{display:flex;gap:6px;align-items:center}
+  .status .ok{color:var(--good)}
+  .status .warn{color:var(--warn)}
+  .status .bad{color:var(--bad)}
+  .flex{display:flex;gap:8px}
+  .between{display:flex;justify-content:space-between;align-items:center}
+  .nowrap{white-space:nowrap}
+  .hint{color:var(--muted);font-size:12px}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;background:#0b0e1a;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
+  .list{display:flex;flex-wrap:wrap;gap:8px}
+  .tag{background:#0b0e1a;border:1px solid var(--border);color:var(--muted);padding:6px 8px;border-radius:6px;font-size:12px}
+  .danger{color:#fff;background:var(--bad)}
+  .success{color:#0b0e1a;background:var(--good)}
+  .mono{font-family:ui-monospace,Consolas,Menlo,monospace}
+  .footer{padding:12px 20px;color:var(--muted);font-size:12px;border-top:1px solid var(--border)}
+  .drop{border:2px dashed var(--border);border-radius:10px;padding:12px;text-align:center;color:var(--muted)}
+  .hidden{display:none}
+  @media (max-width:960px){ main{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Roblox FastFlags Collection</h1>
+  <div class="sub">Offline, single-file, robust flag manager for Roblox ClientAppSettings.json</div>
+</header>
+
+<main>
+  <!-- Left column: Controls -->
+  <section class="card">
+    <h2>Controls and presets</h2>
+    <div class="content">
+      <div class="row">
+        <select id="presetSelect" title="Load preset">
+          <option value="">Load preset…</option>
+          <option value="core">Core tweaks</option>
+          <option value="graphics">Graphics/quality</option>
+          <option value="network">Networking/diagnostics</option>
+          <option value="studio">Studio QoL</option>
+        </select>
+        <button id="applyPresetBtn">Apply</button>
+      </div>
+
+      <div class="row">
+        <input id="searchInput" type="text" placeholder="Search flags by name…" />
+      </div>
+
+      <div class="grid">
+        <div>
+          <label class="hint">Filter by type</label>
+          <select id="typeFilter">
+            <option value="">Any</option>
+            <option>FFlag</option>
+            <option>DFFlag</option>
+            <option>FLog</option>
+            <option>DFInt</option>
+            <option>DFString</option>
+            <option>DFFloat</option>
+          </select>
+        </div>
+        <div>
+          <label class="hint">Category</label>
+          <select id="categoryFilter">
+            <option value="">Any</option>
+            <option>Core</option>
+            <option>Graphics</option>
+            <option>Network</option>
+            <option>Studio</option>
+            <option>Custom</option>
+          </select>
+        </div>
+        <div>
+          <label class="hint">Sort</label>
+          <select id="sortSelect">
+            <option value="name">Name</option>
+            <option value="type">Type</option>
+            <option value="category">Category</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="between" style="margin-top:10px">
+        <div class="status">
+          <span class="pill">Flags: <span id="countFlags">0</span></span>
+          <span class="pill">Profiles: <span id="countProfiles">0</span></span>
+          <span class="pill">Last import: <span id="lastImport">none</span></span>
+        </div>
+        <div class="flex">
+          <button class="secondary" id="resetFiltersBtn">Reset filters</button>
+          <button class="ghost" id="clearAllBtn" title="Clear current flags">Clear</button>
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:12px 0" />
+
+      <div class="row">
+        <select id="profileSelect" title="Profiles"></select>
+        <button id="saveProfileBtn">Save</button>
+        <button class="secondary" id="deleteProfileBtn">Delete</button>
+      </div>
+      <div class="row">
+        <input id="profileNameInput" type="text" placeholder="New profile name…" />
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:12px 0" />
+
+      <div class="row">
+        <button id="exportBtn">Export JSON</button>
+        <button class="secondary" id="copyPathBtn">Windows path</button>
+        <button class="secondary" id="diffBtn">Diff</button>
+      </div>
+
+      <div id="pathBox" class="hidden hint" style="margin-top:8px">
+        Place ClientAppSettings.json into:
+        <div class="list" style="margin-top:8px">
+          <span class="tag mono">%LOCALAPPDATA%\Roblox\Versions\version-XXXXXXXXXXXX\</span>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="importBtn">Import JSON</button>
+        <button class="ghost" id="pasteBtn">Paste JSON</button>
+      </div>
+      <div id="dropZone" class="drop">Drop ClientAppSettings.json here to import</div>
+      <textarea id="pasteArea" class="hidden" placeholder="Paste JSON here…"></textarea>
+
+    </div>
+  </section>
+
+  <!-- Right column: Flags table and editor -->
+  <section class="card">
+    <h2>Flags</h2>
+    <div class="content">
+      <div class="row">
+        <input id="newName" type="text" placeholder="Flag name (e.g., FFlagSomething)" />
+        <select id="newType">
+          <option>FFlag</option>
+          <option>DFFlag</option>
+          <option>DFInt</option>
+          <option>DFString</option>
+          <option>DFFloat</option>
+          <option>FLog</option>
+        </select>
+        <input id="newValue" type="text" placeholder="Value (true/false, number, or text)" />
+        <select id="newCategory">
+          <option>Custom</option>
+          <option>Core</option>
+          <option>Graphics</option>
+          <option>Network</option>
+          <option>Studio</option>
+        </select>
+        <button id="addBtn">Add</button>
+      </div>
+      <div class="hint">Valid name patterns: FFlag, DFFlag, DFInt, DFString, DFFloat/DFFloat, FLog. Values auto-validated per type.</div>
+
+      <table class="flags" id="flagsTable">
+        <thead>
+          <tr>
+            <th class="nowrap">Name</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Category</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="flagsBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- Diff modal -->
+<section id="diffModal" class="card hidden" style="position:fixed;inset:10% 12%;z-index:1000">
+  <h2>Diff</h2>
+  <div class="content">
+    <div class="row">
+      <div class="pill">Comparing current vs. baseline</div>
+      <button class="secondary" id="closeDiffBtn" style="margin-left:auto">Close</button>
+    </div>
+    <div id="diffContent" class="mono" style="white-space:pre-wrap;max-height:50vh;overflow:auto"></div>
+  </div>
+</section>
+
+<footer class="footer">
+  Tip: Keep this HTML as your source of truth. After Roblox updates, re-export and copy ClientAppSettings.json into the new version folder.
+</footer>
+
+<script>
+(function(){
+  // Storage keys
+  const KEY_FLAGS = 'rblx_flags_current';
+  const KEY_PROFILES = 'rblx_flags_profiles';
+  const KEY_BASELINE = 'rblx_flags_baseline_json';
+  const KEY_LAST_IMPORT_NAME = 'rblx_flags_last_import_name';
+
+  // Elements
+  const presetSelect = $('presetSelect');
+  const applyPresetBtn = $('applyPresetBtn');
+  const searchInput = $('searchInput');
+  const typeFilter = $('typeFilter');
+  const categoryFilter = $('categoryFilter');
+  const sortSelect = $('sortSelect');
+  const resetFiltersBtn = $('resetFiltersBtn');
+  const clearAllBtn = $('clearAllBtn');
+
+  const profileSelect = $('profileSelect');
+  const saveProfileBtn = $('saveProfileBtn');
+  const deleteProfileBtn = $('deleteProfileBtn');
+  const profileNameInput = $('profileNameInput');
+
+  const exportBtn = $('exportBtn');
+  const copyPathBtn = $('copyPathBtn');
+  const pathBox = $('pathBox');
+  const diffBtn = $('diffBtn');
+
+  const importBtn = $('importBtn');
+  const pasteBtn = $('pasteBtn');
+  const pasteArea = $('pasteArea');
+  const dropZone = $('dropZone');
+
+  const countFlags = $('countFlags');
+  const countProfiles = $('countProfiles');
+  const lastImport = $('lastImport');
+
+  const newName = $('newName');
+  const newType = $('newType');
+  const newValue = $('newValue');
+  const newCategory = $('newCategory');
+  const addBtn = $('addBtn');
+
+  const flagsBody = $('flagsBody');
+
+  const diffModal = $('diffModal');
+  const diffContent = $('diffContent');
+  const closeDiffBtn = $('closeDiffBtn');
+
+  // State
+  let flags = loadJSON(KEY_FLAGS, []);
+  let profiles = loadJSON(KEY_PROFILES, {});
+  let baselineJSON = localStorage.getItem(KEY_BASELINE) || '';
+  let lastImportName = localStorage.getItem(KEY_LAST_IMPORT_NAME) || 'none';
+
+  // Init
+  renderFlags();
+  renderProfiles();
+  lastImport.textContent = lastImportName;
+
+  // Presets
+  const PRESETS = {
+    core: [
+      ff('FFlagEnableBetaChannel', 'FFlag', true, 'Core', 'Example toggle; set true to opt-in if supported'),
+      ff('DFIntCrashUploadQuota', 'DFInt', 0, 'Core', 'Disable crash upload quota (0)'),
+      ff('DFStringCrashUploadTo', 'DFString', '', 'Core', 'Empty endpoint')
+    ],
+    graphics: [
+      ff('DFIntRenderQualityLevel', 'DFInt', 10, 'Graphics', 'Max quality (0-10)'),
+      ff('FFlagVideoMemoryManagement2', 'FFlag', true, 'Graphics', 'Enable new memory manager if available'),
+      ff('DFFlagDebugPauseParticles', 'DFFlag', false, 'Graphics', 'Disable particle pause')
+    ],
+    network: [
+      ff('DFIntHttpThrottle', 'DFInt', 0, 'Network', 'Remove throttling'),
+      ff('DFIntConnectionTimeout', 'DFInt', 30, 'Network', 'Timeout in seconds'),
+      ff('FLogNetwork', 'FLog', 'information', 'Network', 'Log level: off|error|warning|information|debug')
+    ],
+    studio: [
+      ff('FFlagStudioUseNewDebugger', 'FFlag', true, 'Studio', 'Enable new debugger'),
+      ff('FFlagStudioUseNewLSP', 'FFlag', true, 'Studio', 'Enable new language server'),
+      ff('DFIntStudioAutoSaveMinutes', 'DFInt', 5, 'Studio', 'Autosave interval')
+    ]
+  };
+
+  applyPresetBtn.addEventListener('click', ()=>{
+    const key = presetSelect.value;
+    if(!key) return;
+    const preset = PRESETS[key] || [];
+    // Merge, overwrite by name
+    for(const item of preset){
+      upsertFlag(item);
+    }
+    persistFlags();
+    renderFlags();
+  });
+
+  // Filters
+  resetFiltersBtn.addEventListener('click', ()=>{
+    searchInput.value = '';
+    typeFilter.value = '';
+    categoryFilter.value = '';
+    sortSelect.value = 'name';
+    renderFlags();
+  });
+
+  searchInput.addEventListener('input', renderFlags);
+  typeFilter.addEventListener('change', renderFlags);
+  categoryFilter.addEventListener('change', renderFlags);
+  sortSelect.addEventListener('change', renderFlags);
+
+  clearAllBtn.addEventListener('click', ()=>{
+    if(confirm('Clear all current flags?')) {
+      flags = [];
+      persistFlags();
+      renderFlags();
+    }
+  });
+
+  // Profiles
+  saveProfileBtn.addEventListener('click', ()=>{
+    const name = profileNameInput.value.trim();
+    if(!name){ alert('Profile name required'); return; }
+    profiles[name] = deepClone(flags);
+    persistProfiles();
+    renderProfiles();
+    profileSelect.value = name;
+  });
+
+  deleteProfileBtn.addEventListener('click', ()=>{
+    const name = profileSelect.value;
+    if(!name){ alert('Select a profile'); return; }
+    if(confirm(`Delete profile "${name}"?`)){
+      delete profiles[name];
+      persistProfiles();
+      renderProfiles();
+    }
+  });
+
+  profileSelect.addEventListener('change', ()=>{
+    const name = profileSelect.value;
+    if(!name) return;
+    flags = deepClone(profiles[name]||[]);
+    persistFlags();
+    renderFlags();
+  });
+
+  // Export
+  exportBtn.addEventListener('click', ()=>{
+    const json = buildClientAppSettings(flags);
+    downloadFile('ClientAppSettings.json', json);
+  });
+
+  copyPathBtn.addEventListener('click', ()=>{
+    pathBox.classList.toggle('hidden');
+  });
+
+  // Diff
+  diffBtn.addEventListener('click', ()=>{
+    const baseline = baselineJSON;
+    const current = buildClientAppSettings(flags);
+    const diffText = diffJSON(baseline, current);
+    diffContent.textContent = diffText || 'No differences.';
+    diffModal.classList.remove('hidden');
+  });
+  closeDiffBtn.addEventListener('click', ()=> diffModal.classList.add('hidden'));
+
+  // Import (file)
+  importBtn.addEventListener('click', ()=>{
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async () => {
+      if(!input.files || !input.files[0]) return;
+      const text = await input.files[0].text();
+      handleImport(text, input.files[0].name);
+    };
+    input.click();
+  });
+
+  // Paste
+  pasteBtn.addEventListener('click', ()=>{
+    pasteArea.classList.toggle('hidden');
+    pasteArea.focus();
+  });
+  pasteArea.addEventListener('change', ()=>{
+    const text = pasteArea.value;
+    if(text.trim().length){
+      handleImport(text, 'pasted');
+    }
+  });
+
+  // Drag & drop
+  dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+  dropZone.addEventListener('dragleave', ()=> dropZone.style.borderColor = 'var(--border)' );
+  dropZone.addEventListener('drop', async (e)=>{
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--border)';
+    const file = e.dataTransfer.files?.[0];
+    if(!file) return;
+    const text = await file.text();
+    handleImport(text, file.name);
+  });
+
+  function handleImport(text, name){
+    try{
+      const parsed = JSON.parse(text);
+      const entries = parseClientAppSettings(parsed);
+      // merge overwrite by name
+      for(const f of entries){ upsertFlag(f); }
+      persistFlags();
+      renderFlags();
+      baselineJSON = buildClientAppSettings(flags);
+      localStorage.setItem(KEY_BASELINE, baselineJSON);
+      lastImportName = name || 'import';
+      localStorage.setItem(KEY_LAST_IMPORT_NAME, lastImportName);
+      lastImport.textContent = lastImportName;
+      alert('Imported and set as baseline for diff.');
+    }catch(err){
+      alert('Invalid JSON: ' + err.message);
+    }
+  }
+
+  // Add flag
+  addBtn.addEventListener('click', ()=>{
+    const name = newName.value.trim();
+    const type = newType.value;
+    const cat = newCategory.value;
+    let valRaw = newValue.value.trim();
+
+    const valid = validateFlag(name, type, valRaw);
+    if(valid.error){ alert(valid.error); return; }
+
+    const value = valid.value;
+    upsertFlag(ff(name, type, value, cat, ''));
+    persistFlags();
+    renderFlags();
+    newName.value = ''; newValue.value = '';
+  });
+
+  // Render
+  function renderFlags(){
+    countFlags.textContent = String(flags.length);
+    const q = searchInput.value.trim().toLowerCase();
+    const t = typeFilter.value;
+    const c = categoryFilter.value;
+    const sortKey = sortSelect.value;
+
+    let list = flags.slice();
+    if(q) list = list.filter(f => f.name.toLowerCase().includes(q));
+    if(t) list = list.filter(f => f.type === t);
+    if(c) list = list.filter(f => f.category === c);
+
+    list.sort((a,b)=>{
+      const ka = a[sortKey].toLowerCase ? a[sortKey].toLowerCase() : a[sortKey];
+      const kb = b[sortKey].toLowerCase ? b[sortKey].toLowerCase() : b[sortKey];
+      if(ka<kb) return -1;
+      if(ka>kb) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    flagsBody.innerHTML = '';
+    for(const f of list){
+      const tr = document.createElement('tr');
+
+      // name
+      const tdName = document.createElement('td');
+      tdName.textContent = f.name;
+      tr.appendChild(tdName);
+
+      // type
+      const tdType = document.createElement('td');
+      const selType = document.createElement('select');
+      ['FFlag','DFFlag','DFInt','DFString','DFFloat','FLog'].forEach(opt=>{
+        const o = document.createElement('option'); o.textContent=opt;
+        o.selected = (opt===f.type); selType.appendChild(o);
+      });
+      selType.addEventListener('change', ()=>{
+        const newType = selType.value;
+        const check = validateFlag(f.name, newType, formatValueForEdit(f.value, newType));
+        if(check.error){ alert(check.error); selType.value = f.type; return; }
+        f.type = newType;
+        f.value = check.value;
+        persistFlags();
+      });
+      tdType.appendChild(selType);
+      tr.appendChild(tdType);
+
+      // value
+      const tdVal = document.createElement('td');
+      const inpVal = document.createElement('input');
+      inpVal.type = 'text';
+      inpVal.value = formatValueForEdit(f.value, f.type);
+      inpVal.addEventListener('change', ()=>{
+        const valRaw = inpVal.value.trim();
+        const check = validateFlag(f.name, f.type, valRaw);
+        if(check.error){ alert(check.error); inpVal.value = formatValueForEdit(f.value, f.type); return; }
+        f.value = check.value;
+        persistFlags();
+      });
+      tdVal.appendChild(inpVal);
+      tr.appendChild(tdVal);
+
+      // category
+      const tdCat = document.createElement('td');
+      const selCat = document.createElement('select');
+      ['Core','Graphics','Network','Studio','Custom'].forEach(opt=>{
+        const o = document.createElement('option'); o.textContent=opt;
+        o.selected = (opt===f.category); selCat.appendChild(o);
+      });
+      selCat.addEventListener('change', ()=>{
+        f.category = selCat.value;
+        persistFlags();
+      });
+      tdCat.appendChild(selCat);
+      tr.appendChild(tdCat);
+
+      // notes
+      const tdNotes = document.createElement('td');
+      const inpNotes = document.createElement('input'); inpNotes.type = 'text';
+      inpNotes.placeholder = 'Optional note';
+      inpNotes.value = f.notes || '';
+      inpNotes.addEventListener('change', ()=>{ f.notes = inpNotes.value; persistFlags(); });
+      tdNotes.appendChild(inpNotes);
+      tr.appendChild(tdNotes);
+
+      // actions
+      const tdAct = document.createElement('td');
+      const delBtn = document.createElement('button'); delBtn.className='ghost'; delBtn.textContent='Delete';
+      delBtn.addEventListener('click', ()=>{
+        flags = flags.filter(x=>x.name!==f.name);
+        persistFlags(); renderFlags();
+      });
+      tdAct.appendChild(delBtn);
+      tr.appendChild(tdAct);
+
+      flagsBody.appendChild(tr);
+    }
+
+    // Update profiles count
+    countProfiles.textContent = String(Object.keys(profiles).length);
+  }
+
+  function renderProfiles(){
+    const names = Object.keys(profiles).sort((a,b)=>a.localeCompare(b));
+    profileSelect.innerHTML = '<option value="">Select profile…</option>' + names.map(n=>`<option>${escapeHTML(n)}</option>`).join('');
+    countProfiles.textContent = String(names.length);
+  }
+
+  // Helpers
+  function ff(name,type,value,category,notes){ return {name,type,value,category,notes}; }
+  function upsertFlag(f){
+    const idx = flags.findIndex(x=>x.name===f.name);
+    if(idx>=0) flags[idx]=f; else flags.push(f);
+  }
+  function persistFlags(){ saveJSON(KEY_FLAGS, flags); }
+  function persistProfiles(){ saveJSON(KEY_PROFILES, profiles); }
+
+  function buildClientAppSettings(list){
+    const obj = {};
+    for(const f of list){
+      obj[f.name] = f.value;
+    }
+    return JSON.stringify(obj, null, 2) + '\n';
+  }
+
+  function parseClientAppSettings(parsed){
+    const arr = [];
+    for(const key of Object.keys(parsed)){
+      const val = parsed[key];
+      const type = inferTypeFromName(key, val);
+      const cat = 'Custom';
+      arr.push(ff(key, type, val, cat, 'imported'));
+    }
+    return arr;
+  }
+
+  function inferTypeFromName(name, val){
+    if(/^D?FFlag/.test(name)) return 'FFlag'; // treat both FFlag and DFFlag as boolean toggles
+    if(/^DFInt/.test(name)) return 'DFInt';
+    if(/^DFString/.test(name)) return 'DFString';
+    if(/^DF(Float|float|Double)/.test(name) || /^DFFloat/.test(name)) return 'DFFloat';
+    if(/^FLog/.test(name)) return 'FLog';
+    // Fallback by JS type
+    if(typeof val === 'boolean') return 'FFlag';
+    if(typeof val === 'number') return Number.isInteger(val) ? 'DFInt' : 'DFFloat';
+    return 'DFString';
+  }
+
+  function validateFlag(name, type, raw){
+    // name patterns
+    const nameOk =
+      /^FFlag[A-Za-z0-9_]+$/.test(name) ||
+      /^DFFlag[A-Za-z0-9_]+$/.test(name) ||
+      /^DFInt[A-Za-z0-9_]+$/.test(name) ||
+      /^DFString[A-Za-z0-9_]+$/.test(name) ||
+      /^DF(Float|float|Double)[A-Za-z0-9_]+$/.test(name) ||
+      /^DFFloat[A-Za-z0-9_]+$/.test(name) ||
+      /^FLog[A-Za-z0-9_]*$/.test(name);
+
+    if(!nameOk) return { error: 'Invalid flag name pattern.' };
+
+    // value parsing by type
+    try{
+      switch(type){
+        case 'FFlag':
+        case 'DFFlag': {
+          const v = normalizeBool(raw);
+          if(v === null) return { error: 'Boolean required (true/false/on/off/1/0).' };
+          return { value: v };
+        }
+        case 'DFInt': {
+          const v = parseInt(raw, 10);
+          if(isNaN(v)) return { error: 'Integer required.' };
+          return { value: v };
+        }
+        case 'DFFloat': {
+          const v = parseFloat(raw);
+          if(isNaN(v)) return { error: 'Float required.' };
+          return { value: v };
+        }
+        case 'DFString': {
+          return { value: String(raw) };
+        }
+        case 'FLog': {
+          // accept known levels or custom text
+          const lvl = String(raw).trim();
+          const ok = ['off','error','warning','information','debug','trace'].includes(lvl) || lvl.length>0;
+          if(!ok) return { error: 'Log level required.' };
+          return { value: lvl };
+        }
+        default:
+          return { error: 'Unknown type.' };
+      }
+    }catch(e){
+      return { error: 'Value parsing error.' };
+    }
+  }
+
+  function formatValueForEdit(val, type){
+    if(type==='FFlag' || type==='DFFlag') return val ? 'true' : 'false';
+    return String(val);
+  }
+
+  function normalizeBool(raw){
+    const s = String(raw).trim().toLowerCase();
+    if(['true','t','yes','y','on','1'].includes(s)) return true;
+    if(['false','f','no','n','off','0'].includes(s)) return false;
+    return null;
+  }
+
+  function diffJSON(a,b){
+    if(!a && !b) return '';
+    try{
+      const A = a ? JSON.parse(a) : {};
+      const B = b ? JSON.parse(b) : {};
+      const keys = Array.from(new Set([...Object.keys(A), ...Object.keys(B)])).sort();
+      const lines = [];
+      for(const k of keys){
+        const av = A[k];
+        const bv = B[k];
+        if(JSON.stringify(av)===JSON.stringify(bv)) continue;
+        if(av===undefined) lines.push(`+ ${k}: ${JSON.stringify(bv)}`);
+        else if(bv===undefined) lines.push(`- ${k}: ${JSON.stringify(av)}`);
+        else lines.push(`~ ${k}: ${JSON.stringify(av)} -> ${JSON.stringify(bv)}`);
+      }
+      return lines.join('\n');
+    }catch(e){
+      return 'Unable to compute diff.';
+    }
+  }
+
+  // Storage helpers
+  function $(id){ return document.getElementById(id); }
+  function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+  function loadJSON(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback; }catch{ return fallback; } }
+  function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
+  function escapeHTML(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function downloadFile(name, text){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+    a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  }
+})();
+</script>
+</body>
+</html>
